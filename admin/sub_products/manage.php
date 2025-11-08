@@ -2,9 +2,9 @@
 // Load config
 require_once('../config.php');
 
-// Fetch sub-product if editing
+// Fetch mini product if editing
 if (isset($_GET['id']) && $_GET['id'] > 0) {
-    $qry = $conn->query("SELECT * FROM `sub_products` WHERE id = '{$_GET['id']}' AND delete_flag = 0");
+    $qry = $conn->query("SELECT * FROM `mini_products` WHERE id = '{$_GET['id']}' AND delete_flag = 0");
     if ($qry->num_rows > 0) {
         foreach ($qry->fetch_assoc() as $k => $v) {
             $$k = stripslashes($v);
@@ -14,38 +14,38 @@ if (isset($_GET['id']) && $_GET['id'] > 0) {
 ?>
 <div class="card card-outline card-info">
     <div class="card-header">
-        <h3 class="card-title"><?php echo isset($id) ? "Update " : "Create New " ?> Sub Product</h3>
+        <h3 class="card-title"><?php echo isset($id) ? "Update " : "Create New " ?> Mini Product</h3>
     </div>
     <div class="card-body">
-        <form action="" id="sub-product-form" enctype="multipart/form-data">
+        <form action="" id="mini-product-form" enctype="multipart/form-data">
             <input type="hidden" name="id" value="<?php echo isset($id) ? $id : '' ?>">
 
-            <!-- Link to parent Product -->
+            <!-- Link to Parent Sub Product -->
             <div class="form-group">
-                <label for="product_id" class="control-label">Parent Product</label>
-                <select name="product_id" id="product_id" class="custom-select select2" required>
+                <label for="sub_product_id" class="control-label">Parent Sub Product</label>
+                <select name="sub_product_id" id="sub_product_id" class="custom-select select2" required>
                     <option value=""></option>
                     <?php
-                    $qry = $conn->query("SELECT * FROM `products` WHERE delete_flag = 0 ORDER BY `name` ASC");
+                    $qry = $conn->query("SELECT * FROM `sub_products` WHERE delete_flag = 0 ORDER BY `name` ASC");
                     while ($row = $qry->fetch_assoc()):
                     ?>
-                        <option value="<?php echo $row['id'] ?>" <?php echo isset($product_id) && $product_id == $row['id'] ? 'selected' : '' ?>>
+                        <option value="<?php echo $row['id'] ?>" <?php echo isset($sub_product_id) && $sub_product_id == $row['id'] ? 'selected' : '' ?>>
                             <?php echo $row['name'] ?>
                         </option>
                     <?php endwhile; ?>
                 </select>
             </div>
 
-            <!-- Sub-product name -->
+            <!-- Mini product name -->
             <div class="form-group">
-                <label for="name" class="control-label">Sub Product Name</label>
+                <label for="name" class="control-label">Mini Product Name</label>
                 <input type="text" name="name" id="name" class="form-control rounded-0" required value="<?php echo isset($name) ? $name : '' ?>">
             </div>
 
-            <!-- Description / Specs -->
+            <!-- Description -->
             <div class="form-group">
                 <label for="description" class="control-label">Description / Specs</label>
-                <textarea name="description" id="description" cols="30" rows="2" class="form-control form no-resize summernote"><?php echo isset($description) ? $description : ''; ?></textarea>
+                <textarea name="description" id="description" cols="30" rows="2" class="form-control no-resize summernote"><?php echo isset($description) ? $description : ''; ?></textarea>
             </div>
 
             <!-- Price -->
@@ -74,7 +74,7 @@ if (isset($_GET['id']) && $_GET['id'] > 0) {
 
             <?php 
             if (isset($id)):
-                $upload_path = "uploads/sub_products/sub_product_" . $id;
+                $upload_path = "uploads/mini_products/mini_product_" . $id;
                 if (is_dir(base_app . $upload_path)):
                     $files = scandir(base_app . $upload_path);
                     foreach ($files as $img):
@@ -97,8 +97,8 @@ if (isset($_GET['id']) && $_GET['id'] > 0) {
     </div>
 
     <div class="card-footer">
-        <button class="btn btn-flat btn-primary" form="sub-product-form">Save</button>
-        <a class="btn btn-flat btn-default" href="?page=sub_products">Cancel</a>
+        <button class="btn btn-flat btn-primary" form="mini-product-form">Save</button>
+        <a class="btn btn-flat btn-default" href="?page=mini_products">Cancel</a>
     </div>
 </div>
 
@@ -145,13 +145,13 @@ $(document).ready(function(){
 
     $('.select2').select2({placeholder:"Please select here",width:"100%"})
 
-    $('#sub-product-form').submit(function(e){
+    $('#mini-product-form').submit(function(e){
         e.preventDefault();
         var _this = $(this)
         $('.err-msg').remove();
         start_loader();
         $.ajax({
-            url:_base_url_+"classes/Master.php?f=save_sub_product",
+            url:_base_url_+"classes/Master.php?f=save_mini_product",
             data: new FormData(this),
             cache: false,
             contentType: false,
@@ -165,7 +165,7 @@ $(document).ready(function(){
             },
             success:function(resp){
                 if(typeof resp =='object' && resp.status == 'success'){
-                    location.href = "./?page=sub_products";
+                    location.href = "./?page=mini_products";
                 }else if(resp.status == 'failed' && !!resp.msg){
                     var el = $('<div>')
                     el.addClass("alert alert-danger err-msg").text(resp.msg)

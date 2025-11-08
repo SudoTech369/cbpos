@@ -28,58 +28,70 @@ class Master extends DBConnection {
     /* ==============================
        BRANDS
        ============================== */
-    // ===== SAVE SUB PRODUCT ===== //
-function save_sub_product() {
+function save_mini_product() {
     extract($_POST);
     $data = "";
-
-    // Prepare fields for insert/update
     foreach ($_POST as $k => $v) {
-        if (!in_array($k, ['id'])) {
-            if (!empty($data)) $data .= ", ";
-            $v = $this->conn->real_escape_string($v);
-            $data .= " `{$k}` = '{$v}' ";
+        if (!in_array($k, ['id']) && !is_array($v)) {
+            $data .= " `{$k}`='" . addslashes(trim($v)) . "',";
         }
     }
+    $data = rtrim($data, ',');
 
     if (empty($id)) {
-        // Insert new sub-product
-        $sql = "INSERT INTO `sub_products` SET {$data}";
+        $sql = "INSERT INTO `mini_products` SET {$data}";
     } else {
-        // Update existing sub-product
-        $sql = "UPDATE `sub_products` SET {$data} WHERE id = '{$id}'";
+        $sql = "UPDATE `mini_products` SET {$data} WHERE id = '{$id}'";
     }
 
     $save = $this->conn->query($sql);
+    if (!$save) {
+        return json_encode(['status' => 'failed', 'error' => $this->conn->error]);
+    }
 
-    if ($save) {
-        $sid = empty($id) ? $this->conn->insert_id : $id;
+    $mini_product_id = empty($id) ? $this->conn->insert_id : $id;
 
-        // Handle image uploads
-        if (isset($_FILES['img']) && count($_FILES['img']['tmp_name']) > 0) {
-            $upload_path = base_app . "uploads/sub_products/sub_product_" . $sid . "/";
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0777, true);
-            }
+    /* ---------- IMAGE UPLOAD FIX ---------- */
+    if (isset($_FILES['image']) && $_FILES['image']['tmp_name'] != '') {
+        $upload_dir = __DIR__ . '/../uploads/mini_products/mini_product_' . $mini_product_id . '/';
+        $db_path = 'uploads/mini_products/mini_product_' . $mini_product_id . '/';
 
-            foreach ($_FILES['img']['tmp_name'] as $k => $tmp_path) {
-                if (!empty($tmp_path)) {
-                    $file_name = time() . "_" . $_FILES['img']['name'][$k];
-                    move_uploaded_file($tmp_path, $upload_path . $file_name);
-                }
-            }
+        // Create folder if missing
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
         }
 
-        return json_encode(['status' => 'success', 'id' => $sid]);
-    } else {
-        return json_encode(['status' => 'failed', 'msg' => $this->conn->error]);
+        // Generate unique name
+        $filename = time() . '_' . basename($_FILES['image']['name']);
+        $target = $upload_dir . $filename;
+
+        // Move the file
+        if (move_uploaded_file($_FILES['image']['tmp_name'], $target)) {
+            // Save DB path
+            $img_path = $db_path . $filename;
+            $this->conn->query("UPDATE mini_products SET image_path = '{$img_path}' WHERE id = '{$mini_product_id}'");
+        }
     }
-    if (isset($_GET['f']) && method_exists($master, $_GET['f'])) {
-    echo $master->{$_GET['f']}();
+
+    return json_encode(['status' => 'success', 'id' => $mini_product_id]);
 }
 
+function delete_mini_product(){
+    extract($_POST);
+    $qry = $this->conn->query("SELECT image_path FROM mini_products WHERE id = '{$id}'");
+    if($qry && $qry->num_rows > 0){
+        $path = $qry->fetch_assoc()['image_path'];
+        if(!empty($path) && file_exists('../'.$path)) unlink('../'.$path);
+    }
+
+    $delete = $this->conn->query("UPDATE mini_products SET delete_flag = 1 WHERE id = '{$id}'");
+    if($delete)
+        return json_encode(['status'=>'success']);
+    else
+        return json_encode(['status'=>'failed','msg'=>'Database Error: '.$this->conn->error]);
 }
 
+// ===== SAVE SUB PRODUCT ===== //
 function save_sub_product(){
     extract($_POST);
     $data = "";
@@ -118,7 +130,6 @@ function save_sub_product(){
                 $file_name = time().'_'.basename($_FILES['img']['name'][$k]);
                 $move = move_uploaded_file($tmp_name, base_app.$upload_path.'/'.$file_name);
                 if($move){
-                    // store the relative path in the DB
                     $path = $this->conn->real_escape_string($upload_path.'/'.$file_name);
                     $this->conn->query("UPDATE sub_products SET image_path = '{$path}' WHERE id = '{$sid}'");
                 }
@@ -128,7 +139,6 @@ function save_sub_product(){
 
     return json_encode(['status'=>'success','id'=>$sid]);
 }
-// ===== DELETE SUB PRODUCT ===== //
 function delete_sub_product() {
     extract($_POST);
     $id = isset($id) ? intval($id) : 0;
